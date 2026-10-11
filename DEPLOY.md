@@ -47,21 +47,30 @@ sudo ufw allow OpenSSH
 
 ## 3. Folders and code
 
-Keep both repos side by side. `deploy/deploy.sh` expects that layout.
+Clone both repos side by side under `/var/www`. `deploy/deploy.sh` expects that layout.
+
+```
+/var/www/quickinfo-back-end    API source and its .env  (never served by nginx)
+/var/www/quickinfo-front-end   website source; builds into dist/
+/var/www/quickinfo-site        the published website     (nginx root)
+```
 
 ```bash
-mkdir -p ~/quickinfo && cd ~/quickinfo
-git clone https://github.com/shivakumarKirigeri641/quickinfo-back-end.git
-git clone https://github.com/shivakumarKirigeri641/quickinfo-front-end.git
-
+cd /var/www
+sudo git clone https://github.com/shivakumarKirigeri641/quickinfo-back-end.git
+sudo git clone https://github.com/shivakumarKirigeri641/quickinfo-front-end.git
 sudo mkdir -p /var/www/quickinfo-site
-sudo chown -R $USER:$USER /var/www/quickinfo-site
+
+# Your user owns them, so npm, git pull and pm2 run without sudo
+sudo chown -R $USER:$USER /var/www/quickinfo-back-end /var/www/quickinfo-front-end /var/www/quickinfo-site
 ```
+
+nginx serves only `/var/www/quickinfo-site`, never the repo folders, so the back-end `.env` is not reachable from the web.
 
 ## 4. Back-end `.env`
 
 ```bash
-cd ~/quickinfo/quickinfo-back-end
+cd /var/www/quickinfo-back-end
 cp .env.example .env
 chmod 600 .env
 nano .env
@@ -101,7 +110,7 @@ Generate a **new** `SECRET_KEY` for production; don't reuse the one from your la
 ## 5. Install and migrate the database
 
 ```bash
-cd ~/quickinfo/quickinfo-back-end
+cd /var/www/quickinfo-back-end
 npm ci --omit=dev
 npm run migrate:check     # expect 200, 201, 202 as PENDING
 npm run migrate           # creates the quickinfo_* tables and their content
@@ -113,7 +122,7 @@ The migrations only add `quickinfo_` tables. ServerPe's tables are not touched.
 ## 6. Start the API with PM2
 
 ```bash
-cd ~/quickinfo/quickinfo-back-end
+cd /var/www/quickinfo-back-end
 mkdir -p logs
 pm2 start ecosystem.config.cjs
 pm2 save
@@ -126,7 +135,7 @@ pm2 logs quickinfo-api --lines 20 # expect "PostgreSQL connected"
 ## 7. Build and publish the website
 
 ```bash
-cd ~/quickinfo/quickinfo-front-end
+cd /var/www/quickinfo-front-end
 npm ci
 SECRET_KEY="$(grep -E '^SECRET_KEY=' ../quickinfo-back-end/.env | cut -d= -f2-)"
 VITE_API_BASE=https://api.quickinfo.in/api VITE_SECRET_KEY="$SECRET_KEY" npm run build
@@ -136,7 +145,7 @@ rsync -a --delete dist/ /var/www/quickinfo-site/
 ## 8. nginx: sites-available and sites-enabled
 
 ```bash
-sudo cp ~/quickinfo/quickinfo-back-end/deploy/nginx-quickinfo.conf /etc/nginx/sites-available/quickinfo
+sudo cp /var/www/quickinfo-back-end/deploy/nginx-quickinfo.conf /etc/nginx/sites-available/quickinfo
 sudo ln -s /etc/nginx/sites-available/quickinfo /etc/nginx/sites-enabled/quickinfo
 sudo nginx -t             # must say "syntax is ok" and "test is successful"
 sudo systemctl reload nginx
@@ -175,7 +184,7 @@ Then in a browser:
 Push your changes to GitHub, then on the server:
 
 ```bash
-cd ~/quickinfo/quickinfo-back-end
+cd /var/www/quickinfo-back-end
 chmod +x deploy/deploy.sh     # first time only
 ./deploy/deploy.sh
 ```

@@ -4,8 +4,8 @@
 #   ./deploy/deploy.sh
 #
 # Assumes the two repos sit side by side:
-#   ~/quickinfo/quickinfo-back-end
-#   ~/quickinfo/quickinfo-front-end
+#   /var/www/quickinfo-back-end
+#   /var/www/quickinfo-front-end
 #
 # Pulls both repos, installs, migrates, builds the website, publishes it and
 # reloads the API. Safe to run again.
